@@ -1,11 +1,13 @@
 """
-:doc: `filesorter.py` is a file sorter, given a directory. Sorts by month.
+:doc: `filesorter.py` is a recursive file sorter, given a directory. Sorts by year and month.
 """
 
+from collections import defaultdict, namedtuple
 import glob
 import datetime
 import os
 import argparse
+from genericpath import isfile
 
 def is_directory_validator(path):
     """validates a given directory"""
@@ -16,17 +18,9 @@ def is_directory_validator(path):
 def get_arguments():
     """Gets the arguments for the utility."""
     parser = argparse.ArgumentParser(description ='Filesorter. Organizes directory by scheme.')
-    parser.add_argument('-r',
-        help='Recursive. Defaults to false.',
-        dest='recursive',
-        default=False)
     parser.add_argument('-x', 
         help='Execute. Executes file actions. Defaults to false.',
         dest='execute',
-        default=False)
-    parser.add_argument('-v',
-        help='Verbose. Lists all actions taken. Defaults to false.',
-        dest='verbose',
         default=False)
     parser.add_argument('directory',
         type=is_directory_validator,
@@ -37,40 +31,35 @@ def get_arguments():
 
     return parsed_args
 
-def get_tree(path):
-    """returns a dictionary tree of months and filenames, given a path"""
-    output = dict()
-    files = glob.glob("*.*", root_dir=path)
-    for file in files:
-        last_modified = datetime.datetime.fromtimestamp(os.path.getmtime(f))
-        full_path = os.path.join(path, file)
-        months_files = output.setdefault(str(last_modified.month), [ ])
-        months_files.append(full_path)
-    return output
+def get_tree_with_years(path):
+    """returns a dictionary tree with years, months, for file names; given a path"""
+    output = defaultdict(lambda: defaultdict(list))
+    Mapping = namedtuple('Mapping', [ 'source', 'target' ])
 
-def get_directory_for_month(working_directory, month, execute):
-    """Creates target directory for month. Returns created directory path."""
-    directory_path = os.path.join(working_directory, month)
-    if not os.path.exists(directory_path) and execute:
-        os.mkdir(directory_path)
-    print("Created " + directory_path)
-    return directory_path
-def move_file(working_directory,key, file, execute):
-    """Moves a file to the target directory"""
-    filename = os.path.basename(file)
-    new_path = os.path.join(working_directory, key, filename)
-    if execute:
-        os.rename(file, new_path)
-    print(file + " -> " + new_path)
-def sort_tree(working_directory, directory_tree, execute):
-    """Enacts sorting on a given directory_tree."""
-    for month in directory_tree:
-        target = get_directory_for_month(working_directory, month, execute)
-        for file in directory_tree[month]:
-            move_file(working_directory, month, file, execute)
-    return
+    for file in glob.iglob("**", root_dir=path, recursive=True):
+        source_path = os.path.join(path, file)
+        if not isfile(source_path):
+            continue
+        last_modified = datetime.datetime.fromtimestamp(os.path.getmtime(source_path))
+        target_path = os.path.join(
+            path,
+            str(last_modified.year),
+            str(last_modified.month),
+            os.path.basename(file))
+        file_mapping = Mapping(source=source_path, target=target_path)
+        output[last_modified.year][last_modified.month].append(file_mapping)
+    return output
+def process_full_tree(full_tree, execute):
+    """Executes moves a full tree"""
+    for year in full_tree:
+        for month in full_tree[year]:
+            for mapping in full_tree[year][month]:
+                if execute:
+                    os.renames(mapping.source, mapping.target)
+                print(mapping.source + " -> " + mapping.target)
 
 if __name__ == '__main__':
     args = get_arguments()
-    tree = get_tree(args.directory)
-    sort_tree(args.directory , tree, args.execute)
+    tree = get_tree_with_years(args.directory)
+    process_full_tree(tree, args.execute)
+    print("Finished.")
