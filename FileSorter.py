@@ -7,7 +7,6 @@ import glob
 import datetime
 import os
 import argparse
-from genericpath import isfile
 
 def is_directory_validator(path):
     """validates a given directory"""
@@ -38,7 +37,7 @@ def get_tree_with_years(path):
 
     for file in glob.iglob("**", root_dir=path, recursive=True):
         source_path = os.path.join(path, file)
-        if not isfile(source_path):
+        if not os.path.isfile(source_path):
             continue
         last_modified = datetime.datetime.fromtimestamp(os.path.getmtime(source_path))
         target_path = os.path.join(
