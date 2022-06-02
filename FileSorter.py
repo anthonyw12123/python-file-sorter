@@ -7,6 +7,7 @@ import glob
 import datetime
 import os
 import argparse
+import logging
 
 def is_directory_validator(path):
     """validates a given directory"""
@@ -27,7 +28,6 @@ def get_arguments():
         default=os.getcwd(),
         help='The directory in which to operate.')
     parsed_args = parser.parse_args()
-
     return parsed_args
 
 def get_tree_with_years(path):
@@ -53,6 +53,7 @@ def is_mapping_processed(mapping):
 def get_target_filename(input_path):
     import uuid
     if(os.path.exists(input_path)):
+        logging.warning("File collision. Deriving new filename for " + input_path)
         file_extension = os.path.splitext(input_path)
         return os.path.join(
             os.path.dirname(input_path),
@@ -63,16 +64,17 @@ def process_full_tree(full_tree, execute):
     for year in full_tree:
         for month in full_tree[year]:
             for mapping in full_tree[year][month]:
-                if not is_mapping_processed(mapping):
-                    print("Skipping file: " + mapping.source)
+                if is_mapping_processed(mapping):
+                    logging.debug("Skipping file: " + mapping.source)
                     continue
                 if execute:
                     target_filename = get_target_filename(mapping.target)
                     os.renames(mapping.source, target_filename)
-                print(mapping.source + " -> " + mapping.target)
+                logging.info(mapping.source + " -> " + mapping.target)
 
 if __name__ == '__main__':
+    logging.basicConfig(filename='filesorterlog.log', encoding='utf-8', level=logging.DEBUG)
     args = get_arguments()
     tree = get_tree_with_years(args.directory)
     process_full_tree(tree, args.execute)
-    print("Finished.")
+    logging.info("Finished.")
