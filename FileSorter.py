@@ -50,6 +50,14 @@ def get_tree_with_years(path):
     return output
 def is_mapping_processed(mapping):
     return mapping.source == mapping.target
+def get_target_filename(input_path):
+    import uuid
+    if(os.path.exists(input_path)):
+        file_extension = os.path.splitext(input_path)
+        return os.path.join(
+            os.path.dirname(input_path),
+            uuid.uuid4().hex + file_extension[1])
+    return input_path
 def process_full_tree(full_tree, execute):
     """Executes moves a full tree"""
     for year in full_tree:
@@ -59,7 +67,8 @@ def process_full_tree(full_tree, execute):
                     print("Skipping file: " + mapping.source)
                     continue
                 if execute:
-                    os.renames(mapping.source, mapping.target)
+                    target_filename = get_target_filename(mapping.target)
+                    os.renames(mapping.source, target_filename)
                 print(mapping.source + " -> " + mapping.target)
 
 if __name__ == '__main__':
