@@ -48,11 +48,16 @@ def get_tree_with_years(path):
         file_mapping = Mapping(source=source_path, target=target_path)
         output[last_modified.year][last_modified.month].append(file_mapping)
     return output
+def is_mapping_processed(mapping):
+    return mapping.source == mapping.target
 def process_full_tree(full_tree, execute):
     """Executes moves a full tree"""
     for year in full_tree:
         for month in full_tree[year]:
             for mapping in full_tree[year][month]:
+                if not is_mapping_processed(mapping):
+                    print("Skipping file: " + mapping.source)
+                    continue
                 if execute:
                     os.renames(mapping.source, mapping.target)
                 print(mapping.source + " -> " + mapping.target)
